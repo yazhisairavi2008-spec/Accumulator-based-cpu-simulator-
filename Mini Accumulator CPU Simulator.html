@@ -1,0 +1,334 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Mini Accumulator CPU Simulator</title>
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<style>
+:root{box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px);
+--bg:#f4f5f8;--card:#fff;--tx:#1b1f2a;--mut:#667;--bd:#d5d9e3;--ac:#2f6fed;--rd:#2e9e5b;--wr:#e8892b;--er:#d93c3c;--cell:#f0f2f7}
+:root[data-theme="dark"]{--bg:#12151c;--card:#1b2029;--tx:#e6e9f0;--mut:#9aa3b5;--bd:#303846;--cell:#232a36}
+@media(prefers-color-scheme:dark){:root:not([data-theme="light"]){--bg:#12151c;--card:#1b2029;--tx:#e6e9f0;--mut:#9aa3b5;--bd:#303846;--cell:#232a36}}
+html{scroll-padding-top:env(safe-area-inset-top,0px)}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--tx);font:14px system-ui,Segoe UI,Roboto,sans-serif}
+h1{font-size:18px;margin:0;padding:14px 18px}
+.wrap{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:12px;padding:0 14px 18px;max-width:1200px;margin:auto}
+@media(max-width:820px){.wrap{grid-template-columns:minmax(0,1fr)}}
+.card{background:var(--card);border:1px solid var(--bd);border-radius:10px;padding:12px;min-width:0}
+.card h2{font-size:12px;letter-spacing:.08em;text-transform:uppercase;color:var(--mut);margin:0 0 8px}
+.full{grid-column:1/-1}
+textarea{width:100%;height:210px;font:13px ui-monospace,Menlo,Consolas,monospace;background:var(--cell);color:var(--tx);border:1px solid var(--bd);border-radius:6px;padding:8px;resize:vertical}
+button{font:inherit;padding:7px 14px;border-radius:6px;border:1px solid var(--bd);background:var(--cell);color:var(--tx);cursor:pointer}
+button:hover{border-color:var(--ac)}button.p{background:var(--ac);color:#fff;border-color:var(--ac)}
+.btns{display:flex;gap:6px;flex-wrap:wrap;margin-top:8px}
+#err{color:var(--er);min-height:18px;margin-top:6px;font-size:13px}
+.regs{display:grid;grid-template-columns:repeat(auto-fit,minmax(90px,1fr));gap:8px}
+.reg{background:var(--cell);border:1px solid var(--bd);border-radius:8px;padding:8px;text-align:center}
+.reg b{display:block;font:600 11px system-ui;color:var(--mut)}
+.reg span{font:600 20px ui-monospace,Menlo,monospace}.reg small{display:block;color:var(--mut);font:11px ui-monospace,monospace;min-height:14px}
+#state{font-weight:700}
+.Running{color:var(--rd)}.Paused{color:var(--wr)}.Halted{color:var(--er)}
+.flow{display:flex;align-items:stretch;gap:4px;flex-wrap:wrap;justify-content:center}
+.node{flex:1 1 90px;min-width:84px;background:var(--cell);border:2px solid var(--bd);border-radius:8px;padding:8px 4px;text-align:center;transition:.2s}
+.node b{display:block;font-size:12px}.node span{font:12px ui-monospace,monospace;color:var(--mut)}
+.node.on{border-color:var(--ac);background:color-mix(in srgb,var(--ac) 18%,var(--card));transform:translateY(-2px)}
+.node.rd.on{border-color:var(--rd)}.node.wr.on{border-color:var(--wr)}
+.arrow{align-self:center;color:var(--mut);font-size:18px}
+#phase{margin-top:8px;text-align:center;font-weight:600;min-height:20px}
+#memGrid{display:grid;grid-template-columns:34px repeat(16,minmax(0,1fr));gap:2px;font:11px ui-monospace,Menlo,monospace}
+#memGrid div{background:var(--cell);text-align:center;padding:3px 0;border-radius:3px;transition:background .2s}
+#memGrid .h{background:none;color:var(--mut)}
+#memGrid .pc{outline:2px solid var(--ac);background:color-mix(in srgb,var(--ac) 30%,var(--card))}
+#memGrid .rd{background:color-mix(in srgb,var(--rd) 45%,var(--card))}
+#memGrid .wr{background:color-mix(in srgb,var(--wr) 55%,var(--card))}
+#memGrid .nz{font-weight:700}
+.leg{font-size:12px;color:var(--mut);margin-top:6px}.leg i{display:inline-block;width:10px;height:10px;border-radius:2px;margin:0 3px 0 8px}
+#trace{height:260px;overflow:auto;font:12px ui-monospace,Menlo,monospace;background:var(--cell);border-radius:6px;padding:8px;white-space:pre-wrap}
+#trace .f{color:var(--ac)}#trace .d{color:var(--wr)}#trace .e{color:var(--rd)}#trace .x{color:var(--er)}
+.help{font-size:12px;color:var(--mut);margin-top:6px;line-height:1.5}
+
+.hero{max-width:900px;margin:auto;padding:18px 14px 6px;text-align:center}
+.hero .subj{font-size:12px;letter-spacing:.1em;text-transform:uppercase;color:var(--ac);font-weight:700}
+.hero h1{font-size:30px;padding:6px 0 0}.hero h3{margin:4px 0 10px;font-size:18px}
+.badges span{display:inline-block;color:#fff;font:700 11px system-ui;letter-spacing:.06em;padding:5px 10px;margin:0 2px}
+.go{display:inline-block;margin:12px 0 4px;font-weight:700;font-size:17px;color:var(--ac)}
+.wrap{margin-top:10px}
+.doc{max-width:900px;margin:10px auto 0;padding:0 14px 24px;line-height:1.6}
+.doc h2{font-size:22px;margin:30px 0 12px;padding-bottom:6px;border-bottom:1px solid var(--bd)}
+.doc table{border-collapse:collapse;width:100%;margin:12px 0;display:block;overflow-x:auto}
+.doc th,.doc td{border:1px solid var(--bd);padding:8px 12px;text-align:left}
+.doc tr:nth-child(even) td{background:var(--cell)}
+.doc code{background:var(--cell);padding:2px 6px;border-radius:5px;font:12.5px ui-monospace,Menlo,monospace}
+.doc pre{background:var(--cell);padding:12px;border-radius:8px;overflow-x:auto;font:12.5px/1.5 ui-monospace,Menlo,monospace}
+.doc blockquote{margin:12px 0;padding:2px 14px;border-left:4px solid var(--bd);color:var(--mut)}
+.doc footer{text-align:center;margin:30px 0 0;padding-top:16px;border-top:1px solid var(--bd)}
+.dg{width:100%;height:auto;margin:6px 0 10px}.dg .bx rect{fill:var(--cell);stroke:var(--ac);stroke-width:1.5}
+.dg .tx,.dg .tx text{fill:var(--tx);font:13px system-ui;text-anchor:middle}.dg .ln path{fill:none;stroke:var(--ac);stroke-width:1.6}.dg .ds{stroke-dasharray:5 4}
+html{scroll-behavior:smooth}
+
+.doc ul{list-style:none;padding-left:4px}
+.doc ul li{position:relative;padding-left:26px;margin:7px 0}
+.doc ul li::before{content:"";position:absolute;left:4px;top:.5em;width:12px;height:12px;border-radius:50%;background:var(--bc,#2f6fed);box-shadow:0 0 0 3px color-mix(in srgb,var(--bc,#2f6fed) 22%,transparent)}
+.doc ul li:nth-child(6n+1){--bc:#e34f26}.doc ul li:nth-child(6n+2){--bc:#f5a623}.doc ul li:nth-child(6n+3){--bc:#2e9e5b}
+.doc ul li:nth-child(6n+4){--bc:#1572b6}.doc ul li:nth-child(6n+5){--bc:#8a4fe0}.doc ul li:nth-child(6n){--bc:#d6336c}
+</style>
+</head>
+<body>
+<header class="hero">
+ <div class="subj">Subject: COA — Computer Organization and Architecture</div>
+ <h1>🧠 Mini Accumulator CPU Simulator</h1>
+ <h3>Visualizing the heartbeat of a CPU</h3>
+  <a class="go" href="#sim">▶ Open the live simulator</a>
+</header>
+<div id="sim"></div>
+<div class="wrap">
+ <div class="card">
+  <h2>Assembly Program</h2>
+  <textarea id="srcBox" spellcheck="false">; Sample: Memory[30] = Memory[20] + Memory[21]
+LOAD 20
+ADD 21
+STORE 30
+OUT
+HALT
+
+@20 05   ; data
+@21 03   ; data</textarea>
+  <div class="btns">
+   <button class="p" id="bAsm">Assemble</button><button id="bStep">Step</button><button id="bRun">Run</button><button id="bPause">Pause</button><button id="bReset">Reset</button>
+   <label style="margin-left:auto;align-self:center;font-size:12px">Speed <input type="range" id="spd" min="100" max="1500" value="700" style="vertical-align:middle"></label>
+  </div>
+  <div id="err"></div>
+  <div class="help">Numbers are hex (e.g. <code>20</code>, <code>0x20</code>); <code>#12</code> is decimal. <code>@addr value</code> stores a data byte. Code is placed from 00 upward; overlap with data is rejected. Opcodes: LOAD=1 STORE=2 ADD=3 SUB=4 AND=5 OR=6 JMP=7 OUT=8 HALT=FF.</div>
+ </div>
+
+ <div class="card">
+  <h2>CPU Registers &nbsp; <span id="state" class="Paused">Paused</span></h2>
+  <div class="regs">
+   <div class="reg"><b>PC</b><span id="rPC">00</span><small id="sPC">&nbsp;</small></div>
+   <div class="reg"><b>IR</b><span id="rIR">--</span><small id="sIR">&nbsp;</small></div>
+   <div class="reg"><b>ACC</b><span id="rACC">00</span><small id="sACC">&nbsp;</small></div>
+   <div class="reg"><b>OUT</b><span id="rOUT">00</span><small id="sOUT">&nbsp;</small></div>
+  </div>
+  <h2 style="margin-top:14px">Visual Simulation</h2>
+  <div class="flow">
+   <div class="node" id="nPC"><b>PC</b><span id="vPC">00</span></div><div class="arrow">→</div>
+   <div class="node rd" id="nMEM"><b>Memory</b><span id="vMEM">—</span></div><div class="arrow">→</div>
+   <div class="node" id="nIR"><b>IR</b><span id="vIR">--</span></div><div class="arrow">→</div>
+   <div class="node" id="nDEC"><b>Decoder</b><span id="vDEC">—</span></div><div class="arrow">→</div>
+   <div class="node" id="nALU"><b>ALU / ACC</b><span id="vALU">—</span></div><div class="arrow">→</div>
+   <div class="node wr" id="nOUT"><b>OUT / Mem</b><span id="vOUT">—</span></div>
+  </div>
+  <div id="phase">Press Assemble, then Step.</div>
+ </div>
+
+ <div class="card full">
+  <h2>Memory (00–FF)</h2>
+  <div id="memGrid"></div>
+  <div class="leg"><i style="background:var(--ac)"></i>PC <i style="background:var(--rd)"></i>read <i style="background:var(--wr)"></i>written</div>
+ </div>
+
+ <div class="card full">
+  <h2>Execution Trace <button style="float:right;padding:2px 8px;font-size:12px" id="bClr">Clear</button></h2>
+  <div id="trace"></div>
+ </div>
+
+
+</div>
+
+<main class="doc">
+<h2>📖 About</h2>
+<p>A live, interactive simulator that shows how a CPU <b>fetches, decodes and executes</b> instructions, one stage at a time. Type your own assembly program, press <b>Step</b> or <b>Run</b>, and watch the PC, IR, ACC, OUT registers and memory change.</p>
+<p>Nothing is hardcoded. Every change you make to the program is assembled and loaded into memory when you press <b>Assemble</b>.</p>
+<h2>🔌 CPU Architecture</h2>
+<svg class="dg" viewBox="0 0 720 220" role="img" aria-label="CPU architecture diagram"><defs><marker id="ar" markerWidth="8" markerHeight="8" refX="7" refY="4" orient="auto"><path d="M0,0 L8,4 L0,8z" style="fill:var(--ac)"/></marker></defs>
+<g class="bx"><rect x="10" y="20" width="90" height="44" rx="8"/><rect x="160" y="20" width="120" height="44" rx="8"/><rect x="340" y="20" width="80" height="44" rx="8"/><rect x="480" y="20" width="130" height="44" rx="8"/><rect x="340" y="140" width="100" height="44" rx="8"/><rect x="500" y="140" width="80" height="44" rx="8"/><rect x="620" y="140" width="80" height="44" rx="8"/></g>
+<g class="tx"><text x="55" y="47">PC</text><text x="220" y="47">Memory 256B</text><text x="380" y="47">IR</text><text x="545" y="47">Control / Decoder</text><text x="390" y="167">ALU</text><text x="540" y="167">ACC</text><text x="660" y="167">OUT</text></g>
+<g class="ln"><path d="M100 42H160" marker-end="url(#ar)"/><path d="M280 42H340" marker-end="url(#ar)"/><path d="M420 42H480" marker-end="url(#ar)"/><path d="M545 64L420 140" marker-end="url(#ar)"/><path d="M220 64L340 160" marker-end="url(#ar)"/><path d="M440 162H500" marker-end="url(#ar)"/><path d="M580 162H620" marker-end="url(#ar)"/><path class="ds" d="M540 184V210H240V64" marker-end="url(#ar)"/></g>
+<text class="tx" x="390" y="204" style="font-size:11px">STORE: ACC → Memory</text></svg>
+<table><tr><th>Block</th><th>Role</th></tr><tr><td><b>Memory</b></td><td>256 × 8-bit locations (00–FF) holding the program and the data</td></tr><tr><td><b>PC</b> (Program Counter)</td><td>Points to the next instruction's address</td></tr><tr><td><b>IR</b> (Instruction Register)</td><td>Holds the instruction being worked on</td></tr><tr><td><b>Control Unit</b></td><td>Decodes the opcode and directs the other blocks</td></tr><tr><td><b>ALU</b></td><td>Does the arithmetic and logic (ADD, SUB, AND, OR)</td></tr><tr><td><b>ACC</b> (Accumulator)</td><td>8-bit register that holds the ALU operand and result</td></tr><tr><td><b>OUT</b></td><td>Output register that receives ACC on the OUT instruction</td></tr></table>
+<h2>🔄 The Instruction Cycle</h2>
+<svg class="dg" viewBox="0 0 720 120" role="img" aria-label="Instruction cycle diagram"><defs><marker id="ar2" markerWidth="8" markerHeight="8" refX="7" refY="4" orient="auto"><path d="M0,0 L8,4 L0,8z" style="fill:var(--ac)"/></marker></defs>
+<g class="bx"><rect x="20" y="15" width="170" height="44" rx="8"/><rect x="275" y="15" width="170" height="44" rx="8"/><rect x="530" y="15" width="170" height="44" rx="8"/></g>
+<g class="tx"><text x="105" y="42">1. FETCH</text><text x="360" y="42">2. DECODE</text><text x="615" y="42">3. EXECUTE</text></g>
+<g class="ln"><path d="M190 37H275" marker-end="url(#ar2)"/><path d="M445 37H530" marker-end="url(#ar2)"/><path class="ds" d="M615 59V100H105V59" marker-end="url(#ar2)"/></g>
+<text class="tx" x="360" y="96" style="font-size:11px">repeat until HALT</text></svg>
+<table><tr><th>Stage</th><th>What happens</th></tr><tr><td><b>1. Fetch</b></td><td>The instruction at address PC is copied from memory into IR, and PC moves on by one</td></tr><tr><td><b>2. Decode</b></td><td>The Control Unit identifies the opcode; if needed the next byte is read as the address operand</td></tr><tr><td><b>3. Execute</b></td><td>The ALU, ACC or memory carry out the operation</td></tr><tr><td><b>4. Repeat</b></td><td>The cycle repeats with the new PC until HALT</td></tr></table>
+<h2>✨ Features</h2>
+<ul><li>⌨️ Write any program, and it loads as you assemble</li><li>👣 Step through Fetch, Decode and Execute</li><li>🗂️ 256-byte memory view with PC, read and write highlighting</li><li>🎞️ Animated data path: PC → Memory → IR → Decoder → ALU/ACC → OUT</li><li>🚦 Running / Paused / Halted CPU state</li><li>▶️ Run, Pause, Reset and a speed slider</li><li>📜 Trace log of every stage</li><li>❗ Clear error messages with line numbers (invalid instruction, bad address, code/data overlap)</li></ul>
+<h2>📋 Supported Instructions</h2>
+<table><tr><th>Instruction</th><th>Opcode</th><th>What it does</th></tr><tr><td><code>LOAD a</code></td><td>01</td><td>ACC = Memory[a]</td></tr><tr><td><code>STORE a</code></td><td>02</td><td>Memory[a] = ACC</td></tr><tr><td><code>ADD a</code></td><td>03</td><td>ACC = ACC + Memory[a]</td></tr><tr><td><code>SUB a</code></td><td>04</td><td>ACC = ACC - Memory[a]</td></tr><tr><td><code>AND a</code></td><td>05</td><td>Bitwise AND with Memory[a]</td></tr><tr><td><code>OR a</code></td><td>06</td><td>Bitwise OR with Memory[a]</td></tr><tr><td><code>JMP a</code></td><td>07</td><td>PC = a</td></tr><tr><td><code>OUT</code></td><td>08</td><td>OUT = ACC</td></tr><tr><td><code>HALT</code></td><td>FF</td><td>Stop execution</td></tr></table>
+<blockquote>Values are 8-bit (00–FF) and wrap around at 256. Numbers are hex (<code>#12</code> for decimal). Text after <code>;</code> is a comment. <code>@addr value</code> stores a data byte.</blockquote>
+<h2>🧪 Example</h2>
+<pre>LOAD 20     ; ACC = 05
+ADD 21      ; ACC = 08
+STORE 30    ; Memory[30] = 08
+OUT         ; OUT = 08
+HALT
+
+@20 05
+@21 03</pre>
+<p><b>Final result:</b> <code>Memory[20] = 05</code>, <code>Memory[21] = 03</code>, <code>ACC = 08</code>, <code>OUT = 08</code>, <code>Memory[30] = 08</code></p>
+<h2>🚀 Run it yourself</h2>
+<p>Open <code>cpu-simulator.html</code> in any modern browser. No installation, server or internet connection is needed.</p>
+<h2>📁 Project Structure</h2>
+<pre>cpu-simulator.html
+├─ HTML  → layout: editor, registers, data path, memory, trace
+├─ CSS   → styling, highlighting, light/dark theme
+└─ JS    → assembler, CPU (fetch/decode/execute), rendering</pre>
+<h2>🎯 Objectives</h2>
+<ul><li>Simulate the basic instruction execution process of a CPU</li><li>Demonstrate the fetch-decode-execute cycle</li><li>Visualize registers, memory and the data path</li><li>Show how assembly becomes machine code in memory</li></ul>
+<h2>🎓 Applications</h2>
+<ul><li>Helps students understand how a CPU works inside</li><li>Useful for learning Computer Organization and Architecture concepts</li><li>Easy to extend with more instructions, such as conditional jumps</li></ul>
+<h2>🔗 Links</h2>
+<ul><li><a href="#sim">🌐 Live simulator</a></li></ul>
+<footer>Made with ❤️ using HTML, CSS and JavaScript</footer>
+</main>
+
+<script>
+window.addEventListener("error",e=>{const x=document.getElementById("err");if(x)x.textContent="Script error: "+e.message});
+(function(){
+"use strict";
+const OP={LOAD:1,STORE:2,ADD:3,SUB:4,AND:5,OR:6,JMP:7,OUT:8,HALT:255};
+const NAME={};for(const k in OP)NAME[OP[k]]=k;
+const NOARG=new Set(['OUT','HALT']);
+const $=id=>document.getElementById(id);
+const hx=v=>v.toString(16).toUpperCase().padStart(2,'0');
+let mem=new Uint8Array(256),image=new Uint8Array(256),loaded=false;
+let cpu={pc:0,ir:null,acc:0,out:0,state:'Paused'},timer=null,vt=[];
+let marks={};
+
+function parseNum(s){
+  s=s.trim();let v;
+  if(/^#\d+$/.test(s))v=parseInt(s.slice(1),10);
+  else if(/^(0x)?[0-9a-f]+$/i.test(s))v=parseInt(s.replace(/^0x/i,''),16);
+  else return NaN;
+  return v;
+}
+function assemble(){
+  const m=new Uint8Array(256),owner=new Array(256).fill(null);let loc=0;
+  const put=(a,v,what,ln)=>{
+    if(a>255)throw`Line ${ln}: address ${a} is outside memory (00–FF).`;
+    if(owner[a])throw`Line ${ln}: memory overlap at ${hx(a)} — ${what} collides with ${owner[a]}.`;
+    owner[a]=what;m[a]=v;
+  };
+  src.value.split('\n').forEach((raw,i)=>{
+    const ln=i+1,line=raw.split(';')[0].trim();if(!line)return;
+    const t=line.split(/[\s,]+/);
+    if(t[0][0]==='@'){
+      const a=parseNum(t[0].slice(1)),v=parseNum(t[1]||'');
+      if(t.length!==2||isNaN(a)||a<0||a>255)throw`Line ${ln}: bad data directive "${line}". Use @addr value (addr 00–FF).`;
+      if(isNaN(v)||v<0||v>255)throw`Line ${ln}: data value must be 00–FF.`;
+      put(a,v,`data @${hx(a)}`,ln);return;
+    }
+    const mn=t[0].toUpperCase();
+    if(!(mn in OP))throw`Line ${ln}: invalid instruction "${t[0]}".`;
+    if(NOARG.has(mn)){
+      if(t.length>1)throw`Line ${ln}: ${mn} takes no operand.`;
+      put(loc,OP[mn],`${mn} (line ${ln})`,ln);loc++;
+    }else{
+      if(t.length!==2)throw`Line ${ln}: ${mn} requires one address operand.`;
+      const a=parseNum(t[1]);
+      if(isNaN(a))throw`Line ${ln}: invalid address "${t[1]}".`;
+      if(a<0||a>255)throw`Line ${ln}: address ${t[1]} is outside 00–FF.`;
+      put(loc,OP[mn],`${mn} (line ${ln})`,ln);put(loc+1,a,`${mn} operand (line ${ln})`,ln);loc+=2;
+    }
+  });
+  return m;
+}
+const src=$('srcBox');
+function log(c,t){const d=document.createElement('div');d.className=c;d.textContent=t;$('trace').appendChild(d);$('trace').scrollTop=1e9}
+function setState(s){cpu.state=s;$('state').textContent=s;$('state').className=s}
+function buildMem(){
+  let h='<div class="h"></div>';for(let c=0;c<16;c++)h+=`<div class="h">${c.toString(16).toUpperCase()}</div>`;
+  for(let r=0;r<16;r++){h+=`<div class="h">${hx(r*16)}</div>`;for(let c=0;c<16;c++)h+=`<div id="m${r*16+c}">00</div>`}
+  $('memGrid').innerHTML=h;
+}
+function render(){
+  for(let a=0;a<256;a++){
+    const e=$('m'+a);e.textContent=hx(mem[a]);
+    e.className=(mem[a]?'nz ':'')+(a===cpu.pc&&cpu.state!=='Halted'?'pc ':'')+(marks[a]||'');
+  }
+  $('rPC').textContent=hx(cpu.pc);$('vPC').textContent=hx(cpu.pc);
+  const irs=cpu.ir===null?'--':hx(cpu.ir);
+  $('rIR').textContent=irs;$('vIR').textContent=irs;
+  $('sIR').textContent=cpu.ir===null?'\u00a0':(NAME[cpu.ir]||'???');
+  $('rACC').textContent=hx(cpu.acc);$('sACC').textContent=cpu.acc.toString(2).padStart(8,'0');
+  $('rOUT').textContent=hx(cpu.out);$('sOUT').textContent='dec '+cpu.out;
+  $('sPC').textContent='→ '+(NAME[mem[cpu.pc]]||'data');
+}
+function light(ids,msg){
+  ['nPC','nMEM','nIR','nDEC','nALU','nOUT'].forEach(i=>$(i).classList.remove('on'));
+  ids.forEach(i=>$(i).classList.add('on'));if(msg)$('phase').textContent=msg;
+}
+function animate(seq){
+  vt.forEach(clearTimeout);vt=[];
+  const gap=Math.min(260,(+$('spd').value)/3.5);
+  seq.forEach((s,i)=>vt.push(setTimeout(()=>light(s[0],s[1]),i*gap)));
+}
+function reset(){
+  stop();mem=new Uint8Array(image);cpu={pc:0,ir:null,acc:0,out:0,state:'Paused'};marks={};
+  setState('Paused');light([],'CPU reset. Press Step or Run.');
+  ['vMEM','vDEC','vALU','vOUT'].forEach(i=>$(i).textContent='—');render();
+}
+function halt(why){setState('Halted');stop(false);log('x',why);light([],'CPU halted.');render()}
+function step(){
+  if(!loaded){$('err').textContent='Assemble a program first.';return}
+  if(cpu.state==='Halted')return;
+  marks={};
+  const pc0=cpu.pc;
+  // FETCH
+  cpu.ir=mem[cpu.pc];marks[pc0]='rd ';cpu.pc=(cpu.pc+1)&255;
+  log('f',`FETCH: PC=${hx(pc0)} → IR=${hx(cpu.ir)}, PC←${hx(cpu.pc)}`);
+  const mn=NAME[cpu.ir];
+  if(!mn){log('d',`DECODE: invalid opcode ${hx(cpu.ir)}`);halt(`ERROR: illegal instruction ${hx(cpu.ir)} at ${hx(pc0)}. CPU halted.`);return}
+  let ad=null,seq=[[['nPC','nMEM'],`FETCH: PC=${hx(pc0)} → read Memory[${hx(pc0)}]`],[['nMEM','nIR'],`FETCH: IR ← ${hx(cpu.ir)}, PC++`]];
+  if(!NOARG.has(mn)){ad=mem[cpu.pc];marks[cpu.pc]='rd ';cpu.pc=(cpu.pc+1)&255}
+  log('d',`DECODE: ${mn}${ad!==null?' '+hx(ad):''}`+(ad!==null?` (operand fetched, PC←${hx(cpu.pc)})`:''));
+  seq.push([['nIR','nDEC'],`DECODE: ${mn}${ad!==null?' '+hx(ad):''}`]);
+  $('vMEM').textContent=`M[${hx(pc0)}]=${hx(cpu.ir)}`;$('vDEC').textContent=mn+(ad!==null?' '+hx(ad):'');
+  let ex='',ids=['nALU'];
+  if(mn==='HALT'){
+    log('e','EXECUTE: HALT — CPU stopped');setState('Halted');stop(false);
+    seq.push([['nDEC'],'EXECUTE: HALT — CPU stopped']);animate(seq);render();return;
+  }
+  const mv=ad!==null?mem[ad]:0;
+  switch(mn){
+    case'LOAD':cpu.acc=mv;marks[ad]='rd ';ex=`ACC ← Memory[${hx(ad)}] = ${hx(mv)}`;ids=['nMEM','nALU'];break;
+    case'STORE':mem[ad]=cpu.acc;marks[ad]='wr ';ex=`Memory[${hx(ad)}] ← ACC = ${hx(cpu.acc)}`;ids=['nALU','nOUT'];break;
+    case'ADD':{const r=(cpu.acc+mv)&255;ex=`ACC ← ${hx(cpu.acc)} + ${hx(mv)} = ${hx(r)}`+((cpu.acc+mv)>255?' (wrapped to 8 bits)':'');cpu.acc=r;marks[ad]='rd ';break}
+    case'SUB':{const r=(cpu.acc-mv)&255;ex=`ACC ← ${hx(cpu.acc)} - ${hx(mv)} = ${hx(r)}`+((cpu.acc-mv)<0?' (wrapped to 8 bits)':'');cpu.acc=r;marks[ad]='rd ';break}
+    case'AND':{const r=cpu.acc&mv;ex=`ACC ← ${hx(cpu.acc)} AND ${hx(mv)} = ${hx(r)}`;cpu.acc=r;marks[ad]='rd ';break}
+    case'OR':{const r=cpu.acc|mv;ex=`ACC ← ${hx(cpu.acc)} OR ${hx(mv)} = ${hx(r)}`;cpu.acc=r;marks[ad]='rd ';break}
+    case'JMP':cpu.pc=ad;ex=`PC ← ${hx(ad)}`;ids=['nPC'];break;
+    case'OUT':cpu.out=cpu.acc;ex=`OUT ← ACC = ${hx(cpu.acc)}`;ids=['nALU','nOUT'];break;
+  }
+  if(['LOAD','ADD','SUB','AND','OR'].includes(mn)&&mn!=='LOAD')ids=['nMEM','nALU'];
+  log('e','EXECUTE: '+ex);
+  $('vALU').textContent='ACC='+hx(cpu.acc);$('vOUT').textContent=mn==='STORE'?`M[${hx(ad)}]=${hx(cpu.acc)}`:'OUT='+hx(cpu.out);
+  seq.push([ids,'EXECUTE: '+ex]);animate(seq);render();
+}
+function stop(setP=true){if(timer){clearInterval(timer);timer=null}if(setP&&cpu.state==='Running')setState('Paused')}
+function run(){
+  if(!loaded){$('err').textContent='Assemble a program first.';return}
+  if(cpu.state==='Halted'||timer)return;
+  setState('Running');
+  timer=setInterval(()=>{step();if(cpu.state!=='Running')stop(false)},+$('spd').value);
+}
+$('bAsm').onclick=()=>{
+  try{
+    image=assemble();loaded=true;$('err').textContent='';$('trace').innerHTML='';
+    reset();log('e','ASSEMBLE: program loaded into memory. Ready.');
+  }catch(e){$('err').style.color='var(--er)';$('err').textContent='Assembly error — '+e;loaded=loaded}
+};
+$('bStep').onclick=()=>{if(cpu.state==='Running')return;step()};
+$('bRun').onclick=run;
+$('bPause').onclick=()=>{if(cpu.state==='Running'){stop(false);setState('Paused')}};
+$('bReset').onclick=()=>{if(loaded)reset();$('err').textContent=''};
+$('bClr').onclick=()=>$('trace').innerHTML='';
+$('spd').oninput=()=>{if(timer){stop(false);timer=null;cpu.state='Paused';run()}};
+buildMem();render();$('bAsm').click();
+})();
+</script>
+</body>
+</html>
